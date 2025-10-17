@@ -121,48 +121,6 @@
       transition: width 0.5s ease;
     }
 
-    .timer-container {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-      padding: 12px 16px;
-      background: #f8fafc;
-      border-radius: 10px;
-      border: 1px solid #e2e8f0;
-    }
-
-    .timer-display {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-    }
-
-    .timer-progress {
-      width: 120px;
-      height: 6px;
-      background: #e2e8f0;
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .timer-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #4f46e5, #6366f1);
-      border-radius: 3px;
-      transition: width 1s linear;
-    }
-
-    .timer-warning {
-      color: #ef4444;
-    }
-
-    .timer-icon {
-      width: 18px;
-      height: 18px;
-    }
-
     .question {
       margin: 24px 0;
       padding: 20px;
@@ -431,6 +389,20 @@
       display: none;
     }
 
+    .timer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--text-light);
+      margin-bottom: 16px;
+    }
+
+    .timer-icon {
+      width: 18px;
+      height: 18px;
+    }
+
     @media (max-width: 768px) {
       .card {
         padding: 24px 20px;
@@ -519,7 +491,7 @@
 
   <script>
   // --- QUESTIONS: Replace or extend to 144 items. Example set uses the 12 provided; add more as needed. ---
-    const QUESTIONS = [
+  const QUESTIONS = [
     {
       q: "Which of the following is true?",
       opts: [
@@ -1880,13 +1852,10 @@
   }
   ];
 
+
   // --- Core logic ---
   const TOTAL_PICK = 10;
   let bank = QUESTIONS.slice();
-  let timer;
-  let timeLeft = 6;
-  const totalTime = 6;
-  
   // If user has fewer than TOTAL_PICK, use everything
   function pickRandomN(arr, n){
     const copy = arr.slice();
@@ -1916,128 +1885,11 @@
     progressFill.style.width = `${progress}%`;
   }
 
-  function startTimer() {
-    const timeText = document.getElementById('timeText');
-    const timerFill = document.getElementById('timerFill');
-    const timerDisplay = document.getElementById('timerDisplay');
-    
-    timer = setInterval(() => {
-      timeLeft--;
-      timeText.textContent = `${timeLeft}s`;
-      timerFill.style.width = `${(timeLeft / totalTime) * 100}%`;
-      
-      // Add warning when time is running out
-      if(timeLeft <= 3) {
-        timerDisplay.classList.add('timer-warning');
-        timerFill.style.background = '#ef4444';
-      }
-      
-      if(timeLeft <= 0) {
-        clearInterval(timer);
-        handleAutoSubmit();
-      }
-    }, 1000);
-  }
-
-  function handleAutoSubmit() {
-    const q = quiz[idx];
-    const opts = qArea.querySelectorAll('.opt');
-    let selectedIndices = [];
-    
-    // If no answer selected, submit empty
-    if(q.multiple){
-      opts.forEach((o, i)=>{
-        const checkbox = o.querySelector('.checkbox');
-        if(checkbox && checkbox.classList.contains('checked')) {
-          selectedIndices.push(i);
-        }
-      });
-    } else {
-      const sel = qArea.querySelector('.opt.selected');
-      if(sel){
-        selectedIndices = [Number(sel.getAttribute('data-i'))];
-      }
-    }
-
-    // Disable further changes
-    opts.forEach(o=>o.classList.add('disabled'));
-    submitBtn.disabled = true; 
-    nextBtn.disabled = false;
-
-    // Evaluate correctness
-    const correct = q.answer.slice().sort();
-    const given = selectedIndices.slice().sort();
-    const isCorrect = arraysEqual(correct,given);
-    if(isCorrect) score++;
-    scoreEl.textContent = score;
-
-    // Visual feedback
-    opts.forEach((o,i)=>{
-      const label = o.querySelector('.opt-label');
-      if(q.answer.includes(i)){
-        o.classList.add('correct');
-        if (label) {
-          label.style.background = 'var(--green)';
-          label.style.color = 'white';
-        }
-      }
-      if(given.includes(i) && !q.answer.includes(i)){
-        o.classList.add('wrong');
-        if (label) {
-          label.style.background = 'var(--red)';
-          label.style.color = 'white';
-        }
-      }
-    });
-
-    userAnswers.push({
-      q: q.q, 
-      opts: q.opts, 
-      correct: q.answer.slice(), 
-      given: given.slice(), 
-      multiple: q.multiple,
-      autoSubmitted: selectedIndices.length === 0
-    });
-
-    // Update next button text if last question
-    if(idx === quiz.length-1){
-      nextBtn.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-        </svg>
-        Show Results
-      `;
-    }
-  }
-
   function renderQuestion(){
-    // Clear any existing timer
-    if(timer) clearInterval(timer);
-    timeLeft = totalTime;
-    
     const q = quiz[idx];
     qArea.innerHTML = '';
     finalArea.style.display='none';
-    
-    // Add timer container
-    const timerContainer = document.createElement('div');
-    timerContainer.className = 'timer-container';
-    timerContainer.innerHTML = `
-      <div class="timer-display" id="timerDisplay">
-        <svg class="timer-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="12 6 12 12 16 14"></polyline>
-        </svg>
-        <span id="timeText">${timeLeft}s</span>
-      </div>
-      <div class="timer-progress">
-        <div class="timer-fill" id="timerFill" style="width: 100%"></div>
-      </div>
-    `;
-    
     const container = document.createElement('div');
-    container.appendChild(timerContainer);
     
     const meta = document.createElement('div');
     meta.className='question-number';
@@ -2113,9 +1965,6 @@
     container.appendChild(qbox);
     qArea.appendChild(container);
 
-    // Start the timer
-    startTimer();
-    
     // Update progress bar
     updateProgress();
 
@@ -2125,8 +1974,6 @@
   }
 
   function handleSubmit(){
-    if(timer) clearInterval(timer);
-    
     const q = quiz[idx];
     const opts = qArea.querySelectorAll('.opt');
     let selectedIndices = [];
@@ -2181,7 +2028,7 @@
       }
     });
 
-    userAnswers.push({q: q.q, opts: q.opts, correct: q.answer.slice(), given: given.slice(), multiple: q.multiple, autoSubmitted: false});
+    userAnswers.push({q: q.q, opts: q.opts, correct: q.answer.slice(), given: given.slice(), multiple: q.multiple});
 
     // if last question, change Next to show final
     if(idx === quiz.length-1){
@@ -2203,7 +2050,6 @@
   }
 
   function handleNext(){
-    if(timer) clearInterval(timer);
     if(idx < quiz.length-1){
       idx++;
       renderQuestion();
@@ -2290,19 +2136,15 @@
       correctAnswer.textContent = correctText;
       box.appendChild(correctAnswer);
       
-      // Show user's answers if incorrect or auto-submitted
-      if (!isCorrect || item.autoSubmitted) {
+      // Show user's answers if incorrect
+      if (!isCorrect) {
         const userAnswer = document.createElement('div');
         userAnswer.className = 'review-answer incorrect';
-        let userText = item.autoSubmitted ? 'Time expired - no answer selected' : 'Your answer: ';
-        
-        if (!item.autoSubmitted) {
-          item.given.forEach((g, i) => {
-            if (i > 0) userText += ', ';
-            userText += String.fromCharCode(65 + g);
-          });
-        }
-        
+        let userText = 'Your answer: ';
+        item.given.forEach((g, i) => {
+          if (i > 0) userText += ', ';
+          userText += String.fromCharCode(65 + g);
+        });
         userAnswer.textContent = userText;
         box.appendChild(userAnswer);
       }
