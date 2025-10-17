@@ -148,7 +148,47 @@
       gap: 12px;
       margin: 24px 0;
     }
+  .timer-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
 
+.timer-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.timer-progress {
+  width: 120px;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.timer-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4f46e5, #6366f1);
+  border-radius: 3px;
+  transition: width 1s linear;
+}
+
+.timer-warning {
+  color: #ef4444;
+}
+
+.timer-icon {
+  width: 18px;
+  height: 18px;
+}
     .opt {
       border: 1px solid var(--border);
       padding: 16px;
@@ -490,6 +530,9 @@
   </div>
 
   <script>
+    let timer;
+let timeLeft = 6;
+const totalTime = 6;
   // --- QUESTIONS: Replace or extend to 144 items. Example set uses the 12 provided; add more as needed. ---
   const QUESTIONS = [
     {
@@ -1885,6 +1928,29 @@
   }
 
   function renderQuestion(){
+    if(timer) clearInterval(timer);
+  timeLeft = totalTime;
+  
+  
+  
+  // Add timer container
+  const timerContainer = document.createElement('div');
+  timerContainer.className = 'timer-container';
+  timerContainer.innerHTML = `
+    <div class="timer-display" id="timerDisplay">
+      <svg class="timer-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+      <span id="timeText">${timeLeft}s</span>
+    </div>
+    <div class="timer-progress">
+      <div class="timer-fill" id="timerFill" style="width: 100%"></div>
+    </div>
+  `;
+  
+  const container = document.createElement('div');
+  container.appendChild(timerContainer);
     const q = quiz[idx];
     qArea.innerHTML = '';
     finalArea.style.display='none';
@@ -1966,12 +2032,112 @@
 
     // Update progress bar
     updateProgress();
+    startTimer();
 
     // state buttons
     submitBtn.disabled = false; 
     nextBtn.disabled = true;
   }
+  function startTimer() {
+  const timeText = document.getElementById('timeText');
+  const timerFill = document.getElementById('timerFill');
+  const timerDisplay = document.getElementById('timerDisplay');
+  
+  timer = setInterval(() => {
+    timeLeft--;
+    timeText.textContent = `${timeLeft}s`;
+    timerFill.style.width = `${(timeLeft / totalTime) * 100}%`;
+    
+    // Add warning when time is running out
+    if(timeLeft <= 3) {
+      timerDisplay.classList.add('timer-warning');
+      timerFill.style.background = '#ef4444';
+    }
+    
+    if(timeLeft <= 0) {
+      clearInterval(timer);
+      handleAutoSubmit();
+    }
+  }, 1000);
+}
 
+function handleAutoSubmit() {
+  const q = quiz[idx];
+  const opts = qArea.querySelectorAll('.opt');
+  let selectedIndices = [];
+    if(timer) clearInterval(timer);
+  if(idx < quiz.length-1){
+    idx++;
+    renderQuestion();
+  } else {
+    showResult();
+  }
+  // If no answer selected, submit empty
+  if(q.multiple){
+    opts.forEach((o, i)=>{
+      const checkbox = o.querySelector('.checkbox');
+      if(checkbox && checkbox.classList.contains('checked')) {
+        selectedIndices.push(i);
+      }
+    });
+  } else {
+    const sel = qArea.querySelector('.opt.selected');
+    if(sel){
+      selectedIndices = [Number(sel.getAttribute('data-i'))];
+    }
+  }
+
+  // Disable further changes
+  opts.forEach(o=>o.classList.add('disabled'));
+  submitBtn.disabled = true; 
+  nextBtn.disabled = false;
+
+  // Evaluate correctness
+  const correct = q.answer.slice().sort();
+  const given = selectedIndices.slice().sort();
+  const isCorrect = arraysEqual(correct,given);
+  if(isCorrect) score++;
+  scoreEl.textContent = score;
+
+  // Visual feedback
+  opts.forEach((o,i)=>{
+    const label = o.querySelector('.opt-label');
+    if(q.answer.includes(i)){
+      o.classList.add('correct');
+      if (label) {
+        label.style.background = 'var(--green)';
+        label.style.color = 'white';
+      }
+    }
+    if(given.includes(i) && !q.answer.includes(i)){
+      o.classList.add('wrong');
+      if (label) {
+        label.style.background = 'var(--red)';
+        label.style.color = 'white';
+      }
+    }
+  });
+
+  userAnswers.push({
+    q: q.q, 
+    opts: q.opts, 
+    correct: q.answer.slice(), 
+    given: given.slice(), 
+    multiple: q.multiple,
+    autoSubmitted: selectedIndices.length === 0
+  });
+
+  // Update next button text if last question
+  if(idx === quiz.length-1){
+    nextBtn.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
+      Show Results
+    `;
+  }
+}
   function handleSubmit(){
     const q = quiz[idx];
     const opts = qArea.querySelectorAll('.opt');
